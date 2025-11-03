@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Player } from '../types';
 import { Spinner } from './Spinner';
@@ -83,21 +82,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             return (
               <div
                 key={player.id}
-                className={`flex items-center gap-2 py-2 pl-2 pr-4 rounded-full transition-all duration-300 ease-in-out transform ${
+                title={player.name} // Tooltip for player name
+                className={`p-1 rounded-full transition-all duration-300 ease-in-out transform ${
                   isCurrentPlayer
                     ? 'bg-brand-accent scale-110 shadow-lg ring-4 ring-brand-primary'
                     : 'bg-white/70 shadow-sm'
                 }`}
               >
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-brand-dark font-black text-sm"
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-brand-dark font-black text-base"
                   style={{ backgroundColor: color }}
                 >
                   {initials}
                 </div>
-                <span className={`font-bold text-sm md:text-base ${ isCurrentPlayer ? 'text-brand-dark' : 'text-gray-700'}`}>
-                  {player.name}
-                </span>
               </div>
             );
           })}
