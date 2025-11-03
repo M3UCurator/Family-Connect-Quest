@@ -1,4 +1,3 @@
-
 export interface Player {
   id: number;
   name: string;
@@ -10,6 +9,7 @@ export enum GameState {
 }
 
 export interface SharedGameState {
+  sessionId: string;
   gameState: GameState;
   players: Player[];
   currentPlayerIndex: number;

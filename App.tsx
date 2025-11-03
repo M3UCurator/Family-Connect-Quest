@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Player, GameState, SharedGameState } from './types';
 import { PlayerSetup } from './components/PlayerSetup';
@@ -13,6 +12,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [questionHistory, setQuestionHistory] = useState<string[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   // On initial load, try to hydrate state from the URL hash
   useEffect(() => {
@@ -20,12 +20,13 @@ const App: React.FC = () => {
     if (hash) {
       try {
         const decodedState = JSON.parse(atob(hash)) as SharedGameState;
-        if (decodedState.gameState === GameState.Playing) {
+        if (decodedState.gameState === GameState.Playing && decodedState.sessionId) {
           setGameState(decodedState.gameState);
           setPlayers(decodedState.players);
           setCurrentPlayerIndex(decodedState.currentPlayerIndex);
           setCurrentQuestion(decodedState.currentQuestion);
           setQuestionHistory(decodedState.questionHistory);
+          setSessionId(decodedState.sessionId);
         }
       } catch (e) {
         console.error("Failed to parse game state from URL hash", e);
@@ -46,7 +47,9 @@ const App: React.FC = () => {
     setError(null);
     try {
       const question = await getNewQuestion([]);
+      const newSessionId = `fcq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const newGameState: SharedGameState = {
+        sessionId: newSessionId,
         gameState: GameState.Playing,
         players: newPlayers,
         currentPlayerIndex: 0,
@@ -59,10 +62,20 @@ const App: React.FC = () => {
       setCurrentPlayerIndex(0);
       setCurrentQuestion(question);
       setQuestionHistory([question]);
+      setSessionId(newSessionId);
       setGameState(GameState.Playing);
 
-      // Update URL
+      // Update URL first, so the correct link is shared
       updateUrlWithState(newGameState);
+
+      // Automatically prompt user to share the newly created game link
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Family Connect Quest Game Started!',
+          text: 'Join our game of Family Connect Quest! Here is the link to start playing.',
+          url: window.location.href
+        }).catch((err) => console.error("Share failed", err));
+      }
 
     } catch (err) {
       setError('Failed to fetch the first question. Please try again.');
@@ -83,6 +96,7 @@ const App: React.FC = () => {
       const question = await getNewQuestion(questionHistory);
       const newQuestionHistory = [...questionHistory, question];
       const newGameState: SharedGameState = {
+        sessionId: sessionId!,
         gameState: GameState.Playing,
         players,
         currentPlayerIndex: nextPlayerIndex,

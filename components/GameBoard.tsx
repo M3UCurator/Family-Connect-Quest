@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Player } from '../types';
 import { Spinner } from './Spinner';
 
@@ -20,12 +19,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 }) => {
   const currentPlayer = players[currentPlayerIndex];
   const [copied, setCopied] = useState(false);
+  const isShareSupported = useMemo(() => navigator.share !== undefined, []);
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
-    });
+  const handleShareLink = async () => {
+    const shareData = {
+      title: 'Family Connect Quest',
+      text: "It's the next player's turn in our game! Here is the updated link.",
+      url: window.location.href,
+    };
+
+    if (isShareSupported) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error('Share failed:', err);
+        // User may have cancelled the share action, do nothing.
+      }
+    } else {
+      // Fallback for desktop browsers
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+      });
+    }
   };
 
   return (
@@ -80,13 +96,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </button>
           <div className="text-center mt-4 animate-fade-in">
             <p className="text-sm text-brand-dark/80 mb-2">
-              Done with your turn? Copy the updated game link and share it!
+              Your turn is over! Share the updated link for the next player.
             </p>
             <button
-                onClick={handleCopyLink}
+                onClick={handleShareLink}
                 className="w-full bg-brand-accent text-brand-dark text-lg font-bold py-3 rounded-lg hover:bg-opacity-90 transition transform hover:scale-105 shadow-md"
             >
-                {copied ? '✅ Link Copied!' : '📋 Copy Game Link'}
+                {isShareSupported 
+                  ? '🔗 Share Game Link' 
+                  : (copied ? '✅ Link Copied!' : '📋 Copy Game Link')
+                }
             </button>
         </div>
       </div>
