@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Player, GameState, SharedGameState } from './types';
 import { PlayerSetup } from './components/PlayerSetup';
 import { GameBoard } from './components/GameBoard';
 import { getNewQuestion } from './services/geminiService';
+import { InvitePlayerModal } from './components/InvitePlayerModal';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
@@ -17,6 +18,7 @@ const App: React.FC = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [recordings, setRecordings] = useState<Record<number, string>>({});
   const [shareUrl, setShareUrl] = useState(window.location.origin + window.location.pathname);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   // On initial load, try to hydrate state from the URL hash
   useEffect(() => {
@@ -184,6 +186,38 @@ const App: React.FC = () => {
     const newUrl = `${baseUrl}#${encodedState}`;
     setShareUrl(newUrl);
   };
+
+  const handleAddPlayerToGame = (newPlayerName: string) => {
+    if (players.length >= 8) {
+      console.error("Cannot add more than 8 players.");
+      setIsInviteModalOpen(false);
+      return;
+    }
+    
+    const newPlayer: Player = { id: Date.now(), name: newPlayerName.trim() };
+    const updatedPlayers = [...players, newPlayer];
+    setPlayers(updatedPlayers);
+    
+    // Create new game state with the added player, but keep the current turn as is.
+    const newGameState: SharedGameState = {
+        sessionId: sessionId!,
+        gameState: GameState.Playing,
+        players: updatedPlayers,
+        currentPlayerIndex,
+        currentQuestion,
+        questionHistory,
+        turnDuration,
+        turnStartTime,
+        recordings,
+    };
+
+    const encodedState = btoa(JSON.stringify(newGameState));
+    const baseUrl = window.location.origin + window.location.pathname;
+    const newUrl = `${baseUrl}#${encodedState}`;
+    setShareUrl(newUrl);
+
+    setIsInviteModalOpen(false);
+  };
     
   const handleEndGame = () => {
       if (window.confirm("Are you sure you want to end the game? All progress and recordings will be lost.")) {
@@ -206,6 +240,16 @@ const App: React.FC = () => {
   return (
     <main className="bg-brand-bg min-h-screen w-full flex items-center justify-center font-sans text-brand-dark p-4">
       {gameState === GameState.Setup && <PlayerSetup onGameStart={handleGameStart} />}
+      
+      {isInviteModalOpen && (
+        <InvitePlayerModal
+            onClose={() => setIsInviteModalOpen(false)}
+            onAddPlayer={handleAddPlayerToGame}
+            currentPlayers={players.map(p => p.name.toLowerCase())}
+            playerLimit={8}
+        />
+      )}
+
       {gameState === GameState.Playing && players.length > 0 && (
         <GameBoard
           players={players}
@@ -220,6 +264,7 @@ const App: React.FC = () => {
           currentRecording={recordings[questionHistory.length - 1]}
           turnIndex={questionHistory.length - 1}
           shareUrl={shareUrl}
+          onInvitePlayer={() => setIsInviteModalOpen(true)}
         />
       )}
       {error && <p className="text-red-500 mt-4">{error}</p>}

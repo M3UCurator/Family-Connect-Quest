@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Player } from '../types';
 
@@ -29,7 +28,7 @@ export const PlayerSetup: React.FC<PlayerSetupProps> = ({ onGameStart }) => {
     setPlayers(players.filter(p => p.id !== id));
   };
   
-  const canStartGame = players.length >= 2;
+  const canStartGame = players.length >= 1;
 
   return (
     <div className="w-full max-w-md mx-auto p-6 md:p-8 bg-white rounded-2xl shadow-2xl animate-fade-in">
@@ -82,7 +81,7 @@ export const PlayerSetup: React.FC<PlayerSetupProps> = ({ onGameStart }) => {
 
       <div className="mt-6 space-y-2">
         <h3 className="text-lg font-bold text-brand-dark mb-2">Players ({players.length}/8)</h3>
-        {players.length === 0 && <p className="text-gray-500 text-center py-4">Add at least 2 players to start!</p>}
+        {players.length === 0 && <p className="text-gray-500 text-center py-4">Add at least 1 player to start!</p>}
         <ul className="space-y-2">
           {players.map((player) => (
             <li

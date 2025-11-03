@@ -17,6 +17,7 @@ interface GameBoardProps {
   currentRecording?: string;
   turnIndex: number;
   shareUrl: string;
+  onInvitePlayer: () => void;
 }
 
 const playerColors = [
@@ -52,6 +53,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   currentRecording,
   turnIndex,
   shareUrl,
+  onInvitePlayer,
 }) => {
   const currentPlayer = players[currentPlayerIndex];
   const [copied, setCopied] = useState(false);
@@ -169,7 +171,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 }
             </button>
         </div>
-        <div className="text-center mt-4">
+        <div className="text-center mt-4 flex justify-center items-center gap-4">
+            <button onClick={onInvitePlayer} className="text-sm text-gray-500 hover:text-brand-secondary font-semibold underline">
+                Invite Player
+            </button>
+            <span className="text-gray-400">|</span>
             <button onClick={onEndGame} className="text-sm text-gray-500 hover:text-brand-primary font-semibold underline">
                 End Game & Start Over
             </button>
