@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Player } from '../types';
 import { Spinner } from './Spinner';
 
@@ -18,6 +19,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   isLoading,
 }) => {
   const currentPlayer = players[currentPlayerIndex];
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    });
+  };
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-between p-4 md:p-8">
@@ -69,6 +78,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           >
             {isLoading ? 'Thinking of a question...' : 'Next Turn & New Question'}
           </button>
+          <div className="text-center mt-4 animate-fade-in">
+            <p className="text-sm text-brand-dark/80 mb-2">
+              Done with your turn? Copy the updated game link and share it!
+            </p>
+            <button
+                onClick={handleCopyLink}
+                className="w-full bg-brand-accent text-brand-dark text-lg font-bold py-3 rounded-lg hover:bg-opacity-90 transition transform hover:scale-105 shadow-md"
+            >
+                {copied ? '✅ Link Copied!' : '📋 Copy Game Link'}
+            </button>
+        </div>
       </div>
     </div>
   );

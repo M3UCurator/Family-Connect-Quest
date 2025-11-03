@@ -8,3 +8,11 @@ export enum GameState {
   Setup = 'SETUP',
   Playing = 'PLAYING',
 }
+
+export interface SharedGameState {
+  gameState: GameState;
+  players: Player[];
+  currentPlayerIndex: number;
+  currentQuestion: string;
+  questionHistory: string[];
+}

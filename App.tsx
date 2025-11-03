@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Player, GameState } from './types';
+import { Player, GameState, SharedGameState } from './types';
 import { PlayerSetup } from './components/PlayerSetup';
 import { GameBoard } from './components/GameBoard';
 import { getNewQuestion } from './services/geminiService';
@@ -14,36 +14,90 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [questionHistory, setQuestionHistory] = useState<string[]>([]);
 
-  const fetchFirstQuestion = useCallback(async () => {
+  // On initial load, try to hydrate state from the URL hash
+  useEffect(() => {
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+      try {
+        const decodedState = JSON.parse(atob(hash)) as SharedGameState;
+        if (decodedState.gameState === GameState.Playing) {
+          setGameState(decodedState.gameState);
+          setPlayers(decodedState.players);
+          setCurrentPlayerIndex(decodedState.currentPlayerIndex);
+          setCurrentQuestion(decodedState.currentQuestion);
+          setQuestionHistory(decodedState.questionHistory);
+        }
+      } catch (e) {
+        console.error("Failed to parse game state from URL hash", e);
+        // Clear hash if it's invalid
+        window.history.pushState("", document.title, window.location.pathname + window.location.search);
+      }
+    }
+  }, []);
+
+  const updateUrlWithState = (newState: SharedGameState) => {
+    const encodedState = btoa(JSON.stringify(newState));
+    // Use replaceState to avoid polluting browser history for every turn
+    window.history.replaceState(null, '', '#' + encodedState);
+  };
+
+  const handleGameStart = async (newPlayers: Player[]) => {
     setIsLoading(true);
     setError(null);
     try {
       const question = await getNewQuestion([]);
+      const newGameState: SharedGameState = {
+        gameState: GameState.Playing,
+        players: newPlayers,
+        currentPlayerIndex: 0,
+        currentQuestion: question,
+        questionHistory: [question],
+      };
+      
+      // Update local state
+      setPlayers(newPlayers);
+      setCurrentPlayerIndex(0);
       setCurrentQuestion(question);
       setQuestionHistory([question]);
+      setGameState(GameState.Playing);
+
+      // Update URL
+      updateUrlWithState(newGameState);
+
     } catch (err) {
       setError('Failed to fetch the first question. Please try again.');
       console.error(err);
+      setGameState(GameState.Setup);
     } finally {
       setIsLoading(false);
     }
-  }, []);
-  
-  const handleGameStart = (newPlayers: Player[]) => {
-    setPlayers(newPlayers);
-    setCurrentPlayerIndex(0);
-    setGameState(GameState.Playing);
-    fetchFirstQuestion();
   };
 
   const handleNextTurn = async () => {
     setIsLoading(true);
     setError(null);
-    setCurrentPlayerIndex((prevIndex) => (prevIndex + 1) % players.length);
+    
+    const nextPlayerIndex = (currentPlayerIndex + 1) % players.length;
+
     try {
       const question = await getNewQuestion(questionHistory);
+      const newQuestionHistory = [...questionHistory, question];
+      const newGameState: SharedGameState = {
+        gameState: GameState.Playing,
+        players,
+        currentPlayerIndex: nextPlayerIndex,
+        currentQuestion: question,
+        questionHistory: newQuestionHistory,
+      };
+
+      // Update local state
+      setCurrentPlayerIndex(nextPlayerIndex);
       setCurrentQuestion(question);
-      setQuestionHistory(prev => [...prev, question]);
+      setQuestionHistory(newQuestionHistory);
+
+      // Update URL
+      updateUrlWithState(newGameState);
+
     } catch (err) {
       setError('Failed to fetch a new question. Please try again.');
       console.error(err);
