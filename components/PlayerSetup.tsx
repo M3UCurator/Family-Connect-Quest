@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Player } from '../types';
 
 interface PlayerSetupProps {
-  onGameStart: (players: Player[]) => void;
+  onGameStart: (players: Player[], duration: number) => void;
 }
 
 const PlayerIcon = () => (
@@ -15,6 +15,7 @@ const PlayerIcon = () => (
 export const PlayerSetup: React.FC<PlayerSetupProps> = ({ onGameStart }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [playerName, setPlayerName] = useState('');
+  const [duration, setDuration] = useState(60);
 
   const handleAddPlayer = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +58,28 @@ export const PlayerSetup: React.FC<PlayerSetupProps> = ({ onGameStart }) => {
         </div>
       </form>
 
+      <div className="mt-6">
+        <h3 className="text-lg font-bold text-brand-dark mb-3">Turn Timer</h3>
+        <div className="grid grid-cols-3 gap-2">
+          {[30, 60, 90].map((time) => (
+            <button
+              key={time}
+              onClick={() => setDuration(time)}
+              className={`p-3 rounded-lg font-bold transition-all ${
+                duration === time
+                  ? 'bg-brand-secondary text-white ring-2 ring-brand-accent scale-105'
+                  : 'bg-gray-200 text-brand-dark hover:bg-gray-300'
+              }`}
+            >
+              {time}s
+            </button>
+          ))}
+        </div>
+         <p className="text-xs text-center text-gray-500 mt-2">
+            Choose how long each player has to answer.
+         </p>
+      </div>
+
       <div className="mt-6 space-y-2">
         <h3 className="text-lg font-bold text-brand-dark mb-2">Players ({players.length}/8)</h3>
         {players.length === 0 && <p className="text-gray-500 text-center py-4">Add at least 2 players to start!</p>}
@@ -83,7 +106,7 @@ export const PlayerSetup: React.FC<PlayerSetupProps> = ({ onGameStart }) => {
 
       <div className="mt-8">
         <button
-          onClick={() => onGameStart(players)}
+          onClick={() => onGameStart(players, duration)}
           disabled={!canStartGame}
           className="w-full bg-brand-primary text-white text-xl font-bold py-4 rounded-lg hover:bg-opacity-90 transition transform hover:scale-105 disabled:bg-red-300 disabled:cursor-not-allowed disabled:scale-100 shadow-lg"
         >

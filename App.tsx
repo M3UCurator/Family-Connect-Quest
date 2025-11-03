@@ -12,6 +12,8 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [questionHistory, setQuestionHistory] = useState<string[]>([]);
+  const [turnDuration, setTurnDuration] = useState(60); // Default 60 seconds
+  const [turnStartTime, setTurnStartTime] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   // On initial load, try to hydrate state from the URL hash
@@ -26,6 +28,8 @@ const App: React.FC = () => {
           setCurrentPlayerIndex(decodedState.currentPlayerIndex);
           setCurrentQuestion(decodedState.currentQuestion);
           setQuestionHistory(decodedState.questionHistory);
+          setTurnDuration(decodedState.turnDuration);
+          setTurnStartTime(decodedState.turnStartTime);
           setSessionId(decodedState.sessionId);
         }
       } catch (e) {
@@ -42,7 +46,7 @@ const App: React.FC = () => {
     window.history.replaceState(null, '', '#' + encodedState);
   };
 
-  const handleGameStart = async (newPlayers: Player[]) => {
+  const handleGameStart = async (newPlayers: Player[], duration: number) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -55,6 +59,8 @@ const App: React.FC = () => {
         currentPlayerIndex: 0,
         currentQuestion: question,
         questionHistory: [question],
+        turnDuration: duration,
+        turnStartTime: Date.now(),
       };
       
       // Update local state
@@ -62,6 +68,8 @@ const App: React.FC = () => {
       setCurrentPlayerIndex(0);
       setCurrentQuestion(question);
       setQuestionHistory([question]);
+      setTurnDuration(duration);
+      setTurnStartTime(Date.now());
       setSessionId(newSessionId);
       setGameState(GameState.Playing);
 
@@ -102,12 +110,15 @@ const App: React.FC = () => {
         currentPlayerIndex: nextPlayerIndex,
         currentQuestion: question,
         questionHistory: newQuestionHistory,
+        turnDuration: turnDuration,
+        turnStartTime: Date.now(),
       };
 
       // Update local state
       setCurrentPlayerIndex(nextPlayerIndex);
       setCurrentQuestion(question);
       setQuestionHistory(newQuestionHistory);
+      setTurnStartTime(Date.now());
 
       // Update URL
       updateUrlWithState(newGameState);
@@ -130,6 +141,8 @@ const App: React.FC = () => {
           currentQuestion={currentQuestion}
           onNextTurn={handleNextTurn}
           isLoading={isLoading}
+          turnDuration={turnDuration}
+          turnStartTime={turnStartTime}
         />
       )}
       {error && <p className="text-red-500 mt-4">{error}</p>}

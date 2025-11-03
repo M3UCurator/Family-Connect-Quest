@@ -15,4 +15,6 @@ export interface SharedGameState {
   currentPlayerIndex: number;
   currentQuestion: string;
   questionHistory: string[];
+  turnDuration: number; // in seconds
+  turnStartTime: number; // timestamp in ms
 }
