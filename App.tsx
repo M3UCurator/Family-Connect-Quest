@@ -15,6 +15,8 @@ const App: React.FC = () => {
   const [turnDuration, setTurnDuration] = useState(90); // Default 90 seconds
   const [turnStartTime, setTurnStartTime] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [recordings, setRecordings] = useState<Record<number, string>>({});
+  const [shareUrl, setShareUrl] = useState(window.location.origin + window.location.pathname);
 
   // On initial load, try to hydrate state from the URL hash
   useEffect(() => {
@@ -31,6 +33,7 @@ const App: React.FC = () => {
           setTurnDuration(decodedState.turnDuration);
           setTurnStartTime(decodedState.turnStartTime);
           setSessionId(decodedState.sessionId);
+          setRecordings(decodedState.recordings || {});
         }
       } catch (e) {
         console.error("Failed to parse game state from URL hash", e);
@@ -60,12 +63,6 @@ const App: React.FC = () => {
     };
   }, [gameState]); // Rerun this effect if gameState changes
 
-  const updateUrlWithState = (newState: SharedGameState) => {
-    const encodedState = btoa(JSON.stringify(newState));
-    // Use replaceState to avoid polluting browser history for every turn
-    window.history.replaceState(null, '', '#' + encodedState);
-  };
-
   const handleGameStart = async (newPlayers: Player[], duration: number) => {
     setIsLoading(true);
     setError(null);
@@ -81,6 +78,7 @@ const App: React.FC = () => {
         questionHistory: [question],
         turnDuration: duration,
         turnStartTime: Date.now(),
+        recordings: {},
       };
       
       // Update local state
@@ -91,17 +89,21 @@ const App: React.FC = () => {
       setTurnDuration(duration);
       setTurnStartTime(Date.now());
       setSessionId(newSessionId);
+      setRecordings({});
       setGameState(GameState.Playing);
 
-      // Update URL first, so the correct link is shared
-      updateUrlWithState(newGameState);
+      // Generate the shareable URL and update state
+      const encodedState = btoa(JSON.stringify(newGameState));
+      const baseUrl = window.location.origin + window.location.pathname;
+      const newUrl = `${baseUrl}#${encodedState}`;
+      setShareUrl(newUrl);
 
       // Automatically prompt user to share the newly created game link
       if (navigator.share) {
         await navigator.share({
           title: 'Family Connect Quest Game Started!',
           text: 'Join our game of Family Connect Quest! Here is the link to start playing.',
-          url: window.location.href
+          url: newUrl
         }).catch((err) => console.error("Share failed", err));
       }
 
@@ -132,6 +134,7 @@ const App: React.FC = () => {
         questionHistory: newQuestionHistory,
         turnDuration: turnDuration,
         turnStartTime: Date.now(),
+        recordings: recordings,
       };
 
       // Update local state
@@ -140,8 +143,11 @@ const App: React.FC = () => {
       setQuestionHistory(newQuestionHistory);
       setTurnStartTime(Date.now());
 
-      // Update URL
-      updateUrlWithState(newGameState);
+      // Generate the shareable URL and update state
+      const encodedState = btoa(JSON.stringify(newGameState));
+      const baseUrl = window.location.origin + window.location.pathname;
+      const newUrl = `${baseUrl}#${encodedState}`;
+      setShareUrl(newUrl);
 
     } catch (err) {
       setError('Failed to fetch a new question. Please try again.');
@@ -149,6 +155,52 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  const handleRecordingComplete = (audioDataUrl: string) => {
+    const turnIndex = questionHistory.length - 1;
+    const newRecordings = {
+        ...recordings,
+        [turnIndex]: audioDataUrl,
+    };
+
+    setRecordings(newRecordings);
+
+    const newGameState: SharedGameState = {
+        sessionId: sessionId!,
+        gameState: GameState.Playing,
+        players,
+        currentPlayerIndex,
+        currentQuestion,
+        questionHistory,
+        turnDuration,
+        turnStartTime,
+        recordings: newRecordings,
+    };
+
+    // Generate the shareable URL and update state
+    const encodedState = btoa(JSON.stringify(newGameState));
+    const baseUrl = window.location.origin + window.location.pathname;
+    const newUrl = `${baseUrl}#${encodedState}`;
+    setShareUrl(newUrl);
+  };
+    
+  const handleEndGame = () => {
+      if (window.confirm("Are you sure you want to end the game? All progress and recordings will be lost.")) {
+          setGameState(GameState.Setup);
+          setPlayers([]);
+          setCurrentPlayerIndex(0);
+          setCurrentQuestion('');
+          setQuestionHistory([]);
+          setRecordings({});
+          setTurnDuration(90);
+          setTurnStartTime(0);
+          setSessionId(null);
+          setError(null);
+          
+          const baseUrl = window.location.origin + window.location.pathname;
+          setShareUrl(baseUrl);
+      }
   };
 
   return (
@@ -163,6 +215,11 @@ const App: React.FC = () => {
           isLoading={isLoading}
           turnDuration={turnDuration}
           turnStartTime={turnStartTime}
+          onEndGame={handleEndGame}
+          onRecordingComplete={handleRecordingComplete}
+          currentRecording={recordings[questionHistory.length - 1]}
+          turnIndex={questionHistory.length - 1}
+          shareUrl={shareUrl}
         />
       )}
       {error && <p className="text-red-500 mt-4">{error}</p>}

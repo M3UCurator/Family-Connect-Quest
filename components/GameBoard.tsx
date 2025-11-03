@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Player } from '../types';
 import { Spinner } from './Spinner';
 import { Timer } from './Timer';
+import { AudioRecorder } from './AudioRecorder';
 
 interface GameBoardProps {
   players: Player[];
@@ -11,6 +12,11 @@ interface GameBoardProps {
   isLoading: boolean;
   turnDuration: number;
   turnStartTime: number;
+  onEndGame: () => void;
+  onRecordingComplete: (audioDataUrl: string) => void;
+  currentRecording?: string;
+  turnIndex: number;
+  shareUrl: string;
 }
 
 const playerColors = [
@@ -41,6 +47,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   isLoading,
   turnDuration,
   turnStartTime,
+  onEndGame,
+  onRecordingComplete,
+  currentRecording,
+  turnIndex,
+  shareUrl,
 }) => {
   const currentPlayer = players[currentPlayerIndex];
   const [copied, setCopied] = useState(false);
@@ -50,7 +61,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     const shareData = {
       title: 'Family Connect Quest',
       text: "It's the next player's turn in our game! Here is the updated link.",
-      url: window.location.href,
+      url: shareUrl,
     };
 
     if (isShareSupported) {
@@ -62,7 +73,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       }
     } else {
       // Fallback for desktop browsers
-      navigator.clipboard.writeText(window.location.href).then(() => {
+      navigator.clipboard.writeText(shareUrl).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
       });
@@ -111,8 +122,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       </div>
       
-      <div className="w-full max-w-2xl flex-grow flex items-center justify-center my-6">
-        <div className="relative w-full h-64 md:h-80 bg-white rounded-2xl shadow-2xl p-6 md:p-10 flex items-center justify-center text-center perspective-1000">
+      {/* Middle Section: Question and Audio Recorder */}
+      <div className="w-full max-w-2xl flex-grow flex flex-col items-center justify-center my-6 space-y-6">
+        <div className="relative w-full min-h-[16rem] md:min-h-[20rem] bg-white rounded-2xl shadow-2xl p-6 md:p-10 flex items-center justify-center text-center">
            {isLoading ? (
             <Spinner />
           ) : (
@@ -123,8 +135,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             </div>
           )}
         </div>
+        <div className="w-full">
+            <AudioRecorder
+                onRecordingComplete={onRecordingComplete}
+                currentRecording={currentRecording}
+                turnIndex={turnIndex}
+                disabled={isLoading}
+            />
+        </div>
       </div>
 
+
+      {/* Bottom Section: Controls */}
       <div className="w-full max-w-md">
          <button
             onClick={onNextTurn}
@@ -145,6 +167,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   ? '🔗 Share Game Link' 
                   : (copied ? '✅ Link Copied!' : '📋 Copy Game Link')
                 }
+            </button>
+        </div>
+        <div className="text-center mt-4">
+            <button onClick={onEndGame} className="text-sm text-gray-500 hover:text-brand-primary font-semibold underline">
+                End Game & Start Over
             </button>
         </div>
       </div>

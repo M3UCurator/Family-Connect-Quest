@@ -17,4 +17,5 @@ export interface SharedGameState {
   questionHistory: string[];
   turnDuration: number; // in seconds
   turnStartTime: number; // timestamp in ms
+  recordings: Record<number, string>; // key: turn index, value: base64 audio data
 }
