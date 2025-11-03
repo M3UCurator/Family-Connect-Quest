@@ -15,7 +15,7 @@ const PlayerIcon = () => (
 export const PlayerSetup: React.FC<PlayerSetupProps> = ({ onGameStart }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [playerName, setPlayerName] = useState('');
-  const [duration, setDuration] = useState(60);
+  const [duration, setDuration] = useState(90);
 
   const handleAddPlayer = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +61,7 @@ export const PlayerSetup: React.FC<PlayerSetupProps> = ({ onGameStart }) => {
       <div className="mt-6">
         <h3 className="text-lg font-bold text-brand-dark mb-3">Turn Timer</h3>
         <div className="grid grid-cols-3 gap-2">
-          {[30, 60, 90].map((time) => (
+          {[60, 90, 120].map((time) => (
             <button
               key={time}
               onClick={() => setDuration(time)}

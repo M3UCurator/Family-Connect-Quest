@@ -12,7 +12,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [questionHistory, setQuestionHistory] = useState<string[]>([]);
-  const [turnDuration, setTurnDuration] = useState(60); // Default 60 seconds
+  const [turnDuration, setTurnDuration] = useState(90); // Default 90 seconds
   const [turnStartTime, setTurnStartTime] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
@@ -39,6 +39,26 @@ const App: React.FC = () => {
       }
     }
   }, []);
+
+  // Add confirmation dialog before leaving the page during a game
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Standard way to trigger the browser's confirmation dialog.
+      event.preventDefault();
+      // Required for some older browsers.
+      event.returnValue = '';
+    };
+
+    if (gameState === GameState.Playing) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    // Cleanup function to remove the listener when the component unmounts
+    // or when the game state is no longer 'Playing'.
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [gameState]); // Rerun this effect if gameState changes
 
   const updateUrlWithState = (newState: SharedGameState) => {
     const encodedState = btoa(JSON.stringify(newState));
