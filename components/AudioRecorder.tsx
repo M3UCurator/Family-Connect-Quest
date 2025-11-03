@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface AudioRecorderProps {
   onRecordingComplete: (audioDataUrl: string) => void;
@@ -44,12 +44,27 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplet
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
 
+    // Audio Visualizer refs
+    const visualizerCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const animationFrameIdRef = useRef<number | null>(null);
+    
     const audioKey = `${turnIndex}-${currentRecording?.length || 0}`;
+
+    // Cleanup effect for component unmount
+    useEffect(() => {
+        return () => {
+            if (mediaRecorderRef.current?.state === 'recording') {
+                mediaRecorderRef.current.stop();
+            }
+            if (animationFrameIdRef.current) {
+                cancelAnimationFrame(animationFrameIdRef.current);
+            }
+        };
+    }, []);
 
     const handleStartRecording = async () => {
         if (isRecording || disabled) return;
         
-        // Stop any currently playing audio before starting a new recording
         if (audioRef.current && isPlaying) {
              audioRef.current.pause();
              setIsPlaying(false);
@@ -58,6 +73,42 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplet
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             setPermissionBlocked(false);
+
+            // --- Visualizer Setup ---
+            // FIX: Cast window to any to support webkitAudioContext for older browsers.
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const source = audioContext.createMediaStreamSource(stream);
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            source.connect(analyser);
+
+            const drawVisualizer = () => {
+                if (!visualizerCanvasRef.current) return;
+                animationFrameIdRef.current = requestAnimationFrame(drawVisualizer);
+                analyser.getByteFrequencyData(dataArray);
+
+                const canvas = visualizerCanvasRef.current;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                const { width, height } = canvas;
+                ctx.clearRect(0, 0, width, height);
+
+                const barWidth = (width / bufferLength) * 2.5;
+                let x = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = dataArray[i] / 2.5;
+                    // #4ECDC4 (brand-secondary)
+                    ctx.fillStyle = `rgba(78, 205, 196, ${Math.min(1, barHeight / 100)})`;
+                    ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+                    x += barWidth + 1;
+                }
+            };
+            drawVisualizer();
+
+            // --- MediaRecorder Setup ---
             const recorder = new MediaRecorder(stream);
             mediaRecorderRef.current = recorder;
             audioChunksRef.current = [];
@@ -67,6 +118,12 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplet
             };
 
             recorder.onstop = () => {
+                // Stop visualizer and audio context
+                if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
+                audioContext.close();
+                // Stop microphone tracks
+                stream.getTracks().forEach(track => track.stop());
+
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 const reader = new FileReader();
                 reader.readAsDataURL(audioBlob);
@@ -74,7 +131,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplet
                     const base64data = reader.result as string;
                     onRecordingComplete(base64data);
                 };
-                stream.getTracks().forEach(track => track.stop()); // Release microphone
             };
 
             recorder.start();
@@ -107,7 +163,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplet
 
     const onEnded = () => {
         setIsPlaying(false);
-        setCurrentTime(0); // Reset to beginning for re-play
+        setCurrentTime(0);
     };
 
     const togglePlayPause = () => {
@@ -138,7 +194,15 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplet
                     Microphone access was denied. Please enable it in your browser settings to record audio.
                 </p>
             )}
-            {currentRecording ? (
+            
+            {isRecording ? (
+                <div className="flex flex-col items-center justify-center space-y-2 py-3">
+                    <div className="w-full max-w-xs h-16 rounded-md bg-gray-200/50 p-1">
+                        <canvas ref={visualizerCanvasRef} width="300" height="60" className="w-full h-full"></canvas>
+                    </div>
+                    <p className="text-sm font-semibold text-brand-dark animate-pulse">Recording...</p>
+                </div>
+            ) : currentRecording ? (
                 <div className="flex flex-col items-center w-full">
                     <p className="text-sm font-bold text-brand-dark mb-2">Listen to the answer:</p>
                     <audio
