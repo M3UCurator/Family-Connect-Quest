@@ -53,7 +53,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <Spinner />
           ) : (
             <div className="animate-pop-in">
-                <p className="text-2xl md:text-4xl font-bold text-brand-dark leading-tight">
+                <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-brand-dark leading-snug">
                     {currentQuestion}
                 </p>
             </div>
