@@ -1,0 +1,60 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Family Connect Quest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'brand-bg': '#FFF8E1', // A warm, creamy background
+              'brand-primary': '#FF6B6B', // A vibrant, friendly red/coral
+              'brand-secondary': '#4ECDC4', // A cool, calming teal
+              'brand-accent': '#FFD93D', // A cheerful yellow accent
+              'brand-dark': '#4A4A4A', // A soft, dark grey for text
+            },
+            fontFamily: {
+              sans: ['"Nunito Sans"', 'sans-serif'],
+            },
+             animation: {
+              'fade-in': 'fadeIn 0.5s ease-in-out',
+              'pop-in': 'popIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55)',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              popIn: {
+                '0%': { opacity: '0', transform: 'scale(0.8)' },
+                '100%': { opacity: '1', transform: 'scale(1)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,700;6..12,900&display=swap" rel="stylesheet">
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
