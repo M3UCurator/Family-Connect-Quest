@@ -10,29 +10,33 @@ const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 export async function getNewQuestion(previousQuestions: string[]): Promise<string> {
   try {
-    const prompt = `
-      Generate a single, open-ended question suitable for a family game night with players of all ages.
-      The question should encourage meaningful conversation, connection, and storytelling. It can be fun and lighthearted, or more personal and reflective.
-      Personal questions that encourage sharing feelings and experiences (like "What is your biggest regret?") are okay.
-      However, you MUST AVOID any questions with adult themes, sexual content, or anything inappropriate for children.
-      The question must be different from any of these previous ones: ${previousQuestions.join(', ')}.
-      Return only the question itself, without any introductory text, numbering, or quotation marks.
-      
-      Good examples of the desired tone:
-      - If you could trade places with any cartoon character for a day, who would it be and why?
-      - What's the silliest thing that always makes you laugh?
-      - What is a memory that makes you feel proud of yourself?
-      - If you could give your younger self one piece of advice, what would it be?
+        const systemInstruction = `
+You are a creative question generator for a family game night. Your goal is to provide fun, engaging, and age-appropriate open-ended questions that spark conversation, connection, and storytelling.
 
-      Bad examples (boring, too complex, or inappropriate):
-      - What is the capital of Nebraska?
-      - Describe the geopolitical implications of modern trade agreements.
-      - Any question with adult or sexual themes.
-    `;
+Rules:
+- Questions must be suitable for all ages.
+- AVOID adult themes, sexual content, or anything inappropriate for children.
+- The tone can be lighthearted, fun, personal, or reflective.
+- ALWAYS return only the question itself, without any introductory text, numbering, or quotation marks.
+
+Good examples:
+- If you could trade places with any cartoon character for a day, who would it be and why?
+- What's the silliest thing that always makes you laugh?
+- What is a memory that makes you feel proud of yourself?
+`;
+    
+    const contents = `Generate a single, new question that is different from any of these previous ones: ${previousQuestions.join(', ')}`;
     
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: prompt,
+        contents: contents,
+        config: {
+          systemInstruction: systemInstruction,
+          // Moderate temperature for a balance of creativity and speed
+          temperature: 0.8,
+          // Disable thinking to prioritize low latency for a better interactive experience
+          thinkingConfig: { thinkingBudget: 0 },
+        }
     });
     
     const text = response.text.trim();
