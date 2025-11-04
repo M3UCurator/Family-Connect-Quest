@@ -4,6 +4,7 @@ import { PlayerSetup } from './components/PlayerSetup';
 import { GameBoard } from './components/GameBoard';
 import { getNewQuestion } from './services/geminiService';
 import { InvitePlayerModal } from './components/InvitePlayerModal';
+import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from './services/compression';
 
 const App: React.FC = () => {
   // Helper to get a URL compatible with the history API, especially in blob contexts
@@ -39,7 +40,10 @@ const App: React.FC = () => {
     const hash = window.location.hash.substring(1);
     if (hash) {
       try {
-        const decodedState = JSON.parse(atob(hash)) as SharedGameState;
+        const jsonState = decompressFromEncodedURIComponent(hash);
+        if (!jsonState) throw new Error("Could not decompress state from hash.");
+
+        const decodedState = JSON.parse(jsonState) as SharedGameState;
         if (decodedState.gameState === GameState.Playing && decodedState.sessionId) {
           setGameState(decodedState.gameState);
           setPlayers(decodedState.players);
@@ -72,7 +76,10 @@ const App: React.FC = () => {
       if (!hash) return;
       
       try {
-        const decodedState = JSON.parse(atob(hash)) as SharedGameState;
+        const jsonState = decompressFromEncodedURIComponent(hash);
+        if (!jsonState) return;
+        
+        const decodedState = JSON.parse(jsonState) as SharedGameState;
 
         if (decodedState.sessionId !== sessionId) return;
 
@@ -121,7 +128,7 @@ const App: React.FC = () => {
 
   // Helper to update the URL hash with the new game state
   const updateUrlWithState = (newGameState: SharedGameState): string => {
-    const encodedState = btoa(JSON.stringify(newGameState));
+    const encodedState = compressToEncodedURIComponent(JSON.stringify(newGameState));
 
     // URL for browser history (handles blob:)
     const historyUrl = `${getBaseUrlForHistory()}#${encodedState}`;
