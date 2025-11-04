@@ -6,6 +6,13 @@ import { getNewQuestion } from './services/geminiService';
 import { InvitePlayerModal } from './components/InvitePlayerModal';
 
 const App: React.FC = () => {
+  // Helper to get the base URL without the hash
+  const getBaseUrl = () => {
+    const href = window.location.href;
+    const hashIndex = href.indexOf('#');
+    return hashIndex >= 0 ? href.substring(0, hashIndex) : href;
+  };
+
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -17,7 +24,7 @@ const App: React.FC = () => {
   const [turnStartTime, setTurnStartTime] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [recordings, setRecordings] = useState<Record<number, string>>({});
-  const [shareUrl, setShareUrl] = useState(window.location.origin + window.location.pathname);
+  const [shareUrl, setShareUrl] = useState(getBaseUrl());
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   // On initial load, try to hydrate state from the URL hash
@@ -36,21 +43,63 @@ const App: React.FC = () => {
           setTurnStartTime(decodedState.turnStartTime);
           setSessionId(decodedState.sessionId);
           setRecordings(decodedState.recordings || {});
+          
+          const baseUrl = getBaseUrl();
+          setShareUrl(`${baseUrl}#${hash}`);
         }
       } catch (e) {
         console.error("Failed to parse game state from URL hash", e);
-        // Clear hash if it's invalid
-        window.history.pushState("", document.title, window.location.pathname + window.location.search);
+        window.history.pushState("", document.title, getBaseUrl());
       }
     }
   }, []);
 
+  // Polling mechanism to create a live-sync experience
+  useEffect(() => {
+    if (gameState !== GameState.Playing || !sessionId) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      const hash = window.location.hash.substring(1);
+      if (!hash) return;
+      
+      try {
+        const decodedState = JSON.parse(atob(hash)) as SharedGameState;
+
+        if (decodedState.sessionId !== sessionId) return;
+
+        // Check if the state in the URL is newer than the component's current state
+        const isNewer = decodedState.questionHistory.length > questionHistory.length ||
+                      decodedState.players.length > players.length ||
+                      Object.keys(decodedState.recordings || {}).length > Object.keys(recordings).length;
+
+        if (isNewer) {
+          console.log("Syncing new state from URL...");
+          setPlayers(decodedState.players);
+          setCurrentPlayerIndex(decodedState.currentPlayerIndex);
+          setCurrentQuestion(decodedState.currentQuestion);
+          setQuestionHistory(decodedState.questionHistory);
+          setTurnDuration(decodedState.turnDuration);
+          setTurnStartTime(decodedState.turnStartTime);
+          setRecordings(decodedState.recordings || {});
+          
+          const baseUrl = getBaseUrl();
+          setShareUrl(`${baseUrl}#${hash}`);
+        }
+      } catch (e) {
+        // Silently ignore parse errors during polling, as the hash might be in a transient state
+      }
+    }, 2500); // Poll every 2.5 seconds for updates
+
+    return () => clearInterval(intervalId);
+  }, [gameState, sessionId, players, questionHistory, recordings]);
+
+
   // Add confirmation dialog before leaving the page during a game
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      // Standard way to trigger the browser's confirmation dialog.
       event.preventDefault();
-      // Required for some older browsers.
       event.returnValue = '';
     };
 
@@ -58,12 +107,21 @@ const App: React.FC = () => {
       window.addEventListener('beforeunload', handleBeforeUnload);
     }
 
-    // Cleanup function to remove the listener when the component unmounts
-    // or when the game state is no longer 'Playing'.
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [gameState]); // Rerun this effect if gameState changes
+  }, [gameState]);
+
+  // Helper to update the URL hash with the new game state
+  const updateUrlWithState = (newGameState: SharedGameState): string => {
+    const encodedState = btoa(JSON.stringify(newGameState));
+    const baseUrl = getBaseUrl();
+    const newUrl = `${baseUrl}#${encodedState}`;
+    setShareUrl(newUrl);
+    // This updates the URL in the browser bar, making the state change "live"
+    window.history.replaceState(null, '', newUrl);
+    return newUrl;
+  };
 
   const handleGameStart = async (newPlayers: Player[], duration: number) => {
     setIsLoading(true);
@@ -83,7 +141,6 @@ const App: React.FC = () => {
         recordings: {},
       };
       
-      // Update local state
       setPlayers(newPlayers);
       setCurrentPlayerIndex(0);
       setCurrentQuestion(question);
@@ -94,18 +151,13 @@ const App: React.FC = () => {
       setRecordings({});
       setGameState(GameState.Playing);
 
-      // Generate the shareable URL and update state
-      const encodedState = btoa(JSON.stringify(newGameState));
-      const baseUrl = window.location.origin + window.location.pathname;
-      const newUrl = `${baseUrl}#${encodedState}`;
-      setShareUrl(newUrl);
+      const newShareUrl = updateUrlWithState(newGameState);
 
-      // Automatically prompt user to share the newly created game link
       if (navigator.share) {
         await navigator.share({
           title: 'Family Connect Quest Game Started!',
           text: 'Join our game of Family Connect Quest! Here is the link to start playing.',
-          url: newUrl
+          url: newShareUrl
         }).catch((err) => console.error("Share failed", err));
       }
 
@@ -139,17 +191,12 @@ const App: React.FC = () => {
         recordings: recordings,
       };
 
-      // Update local state
       setCurrentPlayerIndex(nextPlayerIndex);
       setCurrentQuestion(question);
       setQuestionHistory(newQuestionHistory);
       setTurnStartTime(Date.now());
 
-      // Generate the shareable URL and update state
-      const encodedState = btoa(JSON.stringify(newGameState));
-      const baseUrl = window.location.origin + window.location.pathname;
-      const newUrl = `${baseUrl}#${encodedState}`;
-      setShareUrl(newUrl);
+      updateUrlWithState(newGameState);
 
     } catch (err) {
       setError('Failed to fetch a new question. Please try again.');
@@ -180,11 +227,7 @@ const App: React.FC = () => {
         recordings: newRecordings,
     };
 
-    // Generate the shareable URL and update state
-    const encodedState = btoa(JSON.stringify(newGameState));
-    const baseUrl = window.location.origin + window.location.pathname;
-    const newUrl = `${baseUrl}#${encodedState}`;
-    setShareUrl(newUrl);
+    updateUrlWithState(newGameState);
   };
 
   const handleAddPlayerToGame = (newPlayerName: string) => {
@@ -198,7 +241,6 @@ const App: React.FC = () => {
     const updatedPlayers = [...players, newPlayer];
     setPlayers(updatedPlayers);
     
-    // Create new game state with the added player, but keep the current turn as is.
     const newGameState: SharedGameState = {
         sessionId: sessionId!,
         gameState: GameState.Playing,
@@ -211,11 +253,7 @@ const App: React.FC = () => {
         recordings,
     };
 
-    const encodedState = btoa(JSON.stringify(newGameState));
-    const baseUrl = window.location.origin + window.location.pathname;
-    const newUrl = `${baseUrl}#${encodedState}`;
-    setShareUrl(newUrl);
-
+    updateUrlWithState(newGameState);
     setIsInviteModalOpen(false);
   };
     
@@ -232,9 +270,9 @@ const App: React.FC = () => {
           setSessionId(null);
           setError(null);
           
-          const baseUrl = window.location.origin + window.location.pathname;
+          const baseUrl = getBaseUrl();
           setShareUrl(baseUrl);
-          window.history.pushState("", document.title, window.location.pathname + window.location.search);
+          window.history.pushState("", document.title, baseUrl);
       }
   };
 

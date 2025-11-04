@@ -114,7 +114,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
         
         <Timer 
-          key={currentPlayerIndex} // Re-mount timer on turn change to ensure reset
+          key={`${currentPlayerIndex}-${turnStartTime}`} // Re-mount timer on turn change to ensure reset
           startTime={turnStartTime} 
           duration={turnDuration} 
         />
@@ -159,7 +159,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </button>
           <div className="text-center mt-4 animate-fade-in">
             <p className="text-sm text-brand-dark/80 mb-2">
-              Your turn is over! Share the updated link for the next player.
+              The game is live! Share the link with anyone who needs to join the game.
             </p>
             <button
                 onClick={handleShareLink}
