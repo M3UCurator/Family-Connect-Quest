@@ -234,6 +234,7 @@ const App: React.FC = () => {
           
           const baseUrl = window.location.origin + window.location.pathname;
           setShareUrl(baseUrl);
+          window.history.pushState("", document.title, window.location.pathname + window.location.search);
       }
   };
 
