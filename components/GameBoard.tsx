@@ -176,6 +176,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 Invite Player
             </button>
             <span className="text-gray-400">|</span>
+            <button
+              onClick={onNextTurn}
+              disabled={isLoading}
+              className="text-sm text-gray-500 hover:text-brand-primary font-semibold underline disabled:text-gray-400 disabled:cursor-not-allowed disabled:no-underline"
+            >
+              Skip Turn
+            </button>
+            <span className="text-gray-400">|</span>
             <button onClick={onEndGame} className="text-sm text-gray-500 hover:text-brand-primary font-semibold underline">
                 End Game & Start Over
             </button>
