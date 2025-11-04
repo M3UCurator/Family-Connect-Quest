@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 
 const API_KEY = process.env.API_KEY;
@@ -48,7 +49,7 @@ Adhere to the following balance for the questions you generate:
     const contents = `Generate a single, new question that is different from any of these previous ones: ${previousQuestions.join(', ')}`;
     
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-flash-lite-latest',
         contents: contents,
         config: {
           systemInstruction: systemInstruction,
