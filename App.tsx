@@ -6,11 +6,18 @@ import { getNewQuestion } from './services/geminiService';
 import { InvitePlayerModal } from './components/InvitePlayerModal';
 
 const App: React.FC = () => {
-  // Helper to get the base URL without the hash
-  const getBaseUrl = () => {
+  // Helper to get a URL compatible with the history API, especially in blob contexts
+  const getBaseUrlForHistory = () => {
     const href = window.location.href;
     const hashIndex = href.indexOf('#');
     return hashIndex >= 0 ? href.substring(0, hashIndex) : href;
+  };
+
+  // Helper to get a publicly shareable base URL. Avoids blob URLs.
+  const getBaseUrlForSharing = () => {
+    // `window.location.origin` is the most reliable way to get a public, non-blob host.
+    // We assume the app is hosted at the root of the domain.
+    return window.location.origin;
   };
 
   const [gameState, setGameState] = useState<GameState>(GameState.Setup);
@@ -24,7 +31,7 @@ const App: React.FC = () => {
   const [turnStartTime, setTurnStartTime] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [recordings, setRecordings] = useState<Record<number, string>>({});
-  const [shareUrl, setShareUrl] = useState(getBaseUrl());
+  const [shareUrl, setShareUrl] = useState(getBaseUrlForSharing());
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   // On initial load, try to hydrate state from the URL hash
@@ -44,12 +51,12 @@ const App: React.FC = () => {
           setSessionId(decodedState.sessionId);
           setRecordings(decodedState.recordings || {});
           
-          const baseUrl = getBaseUrl();
+          const baseUrl = getBaseUrlForSharing();
           setShareUrl(`${baseUrl}#${hash}`);
         }
       } catch (e) {
         console.error("Failed to parse game state from URL hash", e);
-        window.history.pushState("", document.title, getBaseUrl());
+        window.history.pushState("", document.title, getBaseUrlForHistory());
       }
     }
   }, []);
@@ -84,7 +91,7 @@ const App: React.FC = () => {
           setTurnStartTime(decodedState.turnStartTime);
           setRecordings(decodedState.recordings || {});
           
-          const baseUrl = getBaseUrl();
+          const baseUrl = getBaseUrlForSharing();
           setShareUrl(`${baseUrl}#${hash}`);
         }
       } catch (e) {
@@ -115,12 +122,16 @@ const App: React.FC = () => {
   // Helper to update the URL hash with the new game state
   const updateUrlWithState = (newGameState: SharedGameState): string => {
     const encodedState = btoa(JSON.stringify(newGameState));
-    const baseUrl = getBaseUrl();
-    const newUrl = `${baseUrl}#${encodedState}`;
-    setShareUrl(newUrl);
-    // This updates the URL in the browser bar, making the state change "live"
-    window.history.replaceState(null, '', newUrl);
-    return newUrl;
+
+    // URL for browser history (handles blob:)
+    const historyUrl = `${getBaseUrlForHistory()}#${encodedState}`;
+    window.history.replaceState(null, '', historyUrl);
+
+    // URL for sharing (public, no blob:)
+    const newShareableUrl = `${getBaseUrlForSharing()}#${encodedState}`;
+    setShareUrl(newShareableUrl);
+    
+    return newShareableUrl;
   };
 
   const handleGameStart = async (newPlayers: Player[], duration: number) => {
@@ -270,9 +281,10 @@ const App: React.FC = () => {
           setSessionId(null);
           setError(null);
           
-          const baseUrl = getBaseUrl();
-          setShareUrl(baseUrl);
-          window.history.pushState("", document.title, baseUrl);
+          const baseUrlForHistory = getBaseUrlForHistory();
+          const baseUrlForSharing = getBaseUrlForSharing();
+          setShareUrl(baseUrlForSharing);
+          window.history.pushState("", document.title, baseUrlForHistory);
       }
   };
 
