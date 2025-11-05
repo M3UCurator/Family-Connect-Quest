@@ -387,6 +387,7 @@ const App: React.FC = () => {
             onAddPlayer={handleAddPlayerToGame}
             currentPlayers={players.map(p => p.name.toLowerCase())}
             playerLimit={8}
+            shareUrl={shareUrl}
         />
       )}
 

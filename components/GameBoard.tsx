@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { Player } from '../types';
 import { Spinner } from './Spinner';
 import { Timer } from './Timer';
 import { AudioRecorder } from './AudioRecorder';
+import { ShareButton } from './ShareButton';
 
 interface GameBoardProps {
   players: Player[];
@@ -64,31 +65,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   maxQuestions,
 }) => {
   const currentPlayer = players[currentPlayerIndex];
-  const [copied, setCopied] = useState(false);
-  const isShareSupported = useMemo(() => navigator.share !== undefined, []);
-
-  const handleShareLink = async () => {
-    const shareData = {
-      title: 'Family Connect Quest',
-      text: "It's the next player's turn in our game! Here is the updated link.",
-      url: shareUrl,
-    };
-
-    if (isShareSupported) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        console.error('Share failed:', err);
-        // User may have cancelled the share action, do nothing.
-      }
-    } else {
-      // Fallback for desktop browsers
-      navigator.clipboard.writeText(shareUrl).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
-      });
-    }
-  };
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-between p-4 md:p-8 relative">
@@ -183,16 +159,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <p className="text-sm text-brand-dark/80 mb-2">
               The game is live! Share the link with anyone who needs to join the game.
             </p>
-            <button
-                onClick={handleShareLink}
-                disabled={isPaused}
-                className="w-full bg-brand-accent text-brand-dark text-lg font-bold py-3 rounded-lg hover:bg-opacity-90 transition transform hover:scale-105 shadow-md disabled:bg-yellow-200 disabled:cursor-not-allowed disabled:scale-100"
-            >
-                {isShareSupported 
-                  ? '🔗 Share Game Link' 
-                  : (copied ? '✅ Link Copied!' : '📋 Copy Game Link')
-                }
-            </button>
+            <ShareButton
+              shareUrl={shareUrl}
+              text="It's the next player's turn in our game! Here is the updated link."
+            />
         </div>
         <div className="text-center mt-4 flex justify-center items-center gap-4">
             <button onClick={onInvitePlayer} disabled={isPaused} className="text-sm text-gray-500 hover:text-brand-secondary font-semibold underline disabled:text-gray-400 disabled:cursor-not-allowed disabled:no-underline">
