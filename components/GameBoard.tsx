@@ -18,6 +18,8 @@ interface GameBoardProps {
   turnIndex: number;
   shareUrl: string;
   onInvitePlayer: () => void;
+  isPaused: boolean;
+  onPauseGame: () => void;
 }
 
 const playerColors = [
@@ -54,6 +56,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   turnIndex,
   shareUrl,
   onInvitePlayer,
+  isPaused,
+  onPauseGame,
 }) => {
   const currentPlayer = players[currentPlayerIndex];
   const [copied, setCopied] = useState(false);
@@ -83,7 +87,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-between p-4 md:p-8">
+    <div className="w-full h-full flex flex-col items-center justify-between p-4 md:p-8 relative">
+       <button
+        onClick={onPauseGame}
+        aria-label="Pause Game"
+        disabled={isPaused}
+        className="absolute top-4 right-4 text-brand-secondary hover:text-brand-primary p-2 rounded-full bg-white/80 shadow-md transition z-10 disabled:opacity-50"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </button>
+
       {/* Top Section: Player list and current turn */}
       <div className="w-full">
         <div className="w-full flex justify-center items-center gap-x-4 gap-y-2 mb-6 flex-wrap animate-fade-in">
@@ -142,7 +157,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 onRecordingComplete={onRecordingComplete}
                 currentRecording={currentRecording}
                 turnIndex={turnIndex}
-                disabled={isLoading}
+                disabled={isLoading || isPaused}
             />
         </div>
       </div>
@@ -152,7 +167,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       <div className="w-full max-w-md">
          <button
             onClick={onNextTurn}
-            disabled={isLoading}
+            disabled={isLoading || isPaused}
             className="w-full bg-brand-secondary text-white text-xl font-bold py-4 rounded-lg hover:bg-opacity-90 transition transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:scale-100 shadow-lg"
           >
             {isLoading ? 'Thinking of a question...' : 'Next Turn & New Question'}
@@ -163,7 +178,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             </p>
             <button
                 onClick={handleShareLink}
-                className="w-full bg-brand-accent text-brand-dark text-lg font-bold py-3 rounded-lg hover:bg-opacity-90 transition transform hover:scale-105 shadow-md"
+                disabled={isPaused}
+                className="w-full bg-brand-accent text-brand-dark text-lg font-bold py-3 rounded-lg hover:bg-opacity-90 transition transform hover:scale-105 shadow-md disabled:bg-yellow-200 disabled:cursor-not-allowed disabled:scale-100"
             >
                 {isShareSupported 
                   ? '🔗 Share Game Link' 
@@ -172,19 +188,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             </button>
         </div>
         <div className="text-center mt-4 flex justify-center items-center gap-4">
-            <button onClick={onInvitePlayer} className="text-sm text-gray-500 hover:text-brand-secondary font-semibold underline">
+            <button onClick={onInvitePlayer} disabled={isPaused} className="text-sm text-gray-500 hover:text-brand-secondary font-semibold underline disabled:text-gray-400 disabled:cursor-not-allowed disabled:no-underline">
                 Invite Player
             </button>
             <span className="text-gray-400">|</span>
             <button
               onClick={onNextTurn}
-              disabled={isLoading}
+              disabled={isLoading || isPaused}
               className="text-sm text-gray-500 hover:text-brand-primary font-semibold underline disabled:text-gray-400 disabled:cursor-not-allowed disabled:no-underline"
             >
               Skip Turn
             </button>
             <span className="text-gray-400">|</span>
-            <button onClick={onEndGame} className="text-sm text-gray-500 hover:text-brand-primary font-semibold underline">
+            <button onClick={onEndGame} disabled={isPaused} className="text-sm text-gray-500 hover:text-brand-primary font-semibold underline disabled:text-gray-400 disabled:cursor-not-allowed disabled:no-underline">
                 End Game & Start Over
             </button>
         </div>

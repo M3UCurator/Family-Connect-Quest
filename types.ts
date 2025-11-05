@@ -6,6 +6,7 @@ export interface Player {
 export enum GameState {
   Setup = 'SETUP',
   Playing = 'PLAYING',
+  Paused = 'PAUSED',
 }
 
 export interface SharedGameState {
@@ -18,4 +19,5 @@ export interface SharedGameState {
   turnDuration: number; // in seconds
   turnStartTime: number; // timestamp in ms
   recordings: Record<number, string>; // key: turn index, value: base64 audio data
+  remainingTimeOnPause?: number; // Time left when game was paused
 }

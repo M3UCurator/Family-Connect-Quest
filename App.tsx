@@ -34,6 +34,9 @@ const App: React.FC = () => {
   const [recordings, setRecordings] = useState<Record<number, string>>({});
   const [shareUrl, setShareUrl] = useState(getBaseUrlForSharing());
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [prefetchedQuestion, setPrefetchedQuestion] = useState<string | null>(null);
+  const [remainingTimeOnPause, setRemainingTimeOnPause] = useState<number | null>(null);
+
 
   // On initial load, try to hydrate state from the URL hash
   useEffect(() => {
@@ -44,7 +47,7 @@ const App: React.FC = () => {
         if (!jsonState) throw new Error("Could not decompress state from hash.");
 
         const decodedState = JSON.parse(jsonState) as SharedGameState;
-        if (decodedState.gameState === GameState.Playing && decodedState.sessionId) {
+        if ((decodedState.gameState === GameState.Playing || decodedState.gameState === GameState.Paused) && decodedState.sessionId) {
           setGameState(decodedState.gameState);
           setPlayers(decodedState.players);
           setCurrentPlayerIndex(decodedState.currentPlayerIndex);
@@ -54,6 +57,7 @@ const App: React.FC = () => {
           setTurnStartTime(decodedState.turnStartTime);
           setSessionId(decodedState.sessionId);
           setRecordings(decodedState.recordings || {});
+          setRemainingTimeOnPause(decodedState.remainingTimeOnPause || null);
           
           const baseUrl = getBaseUrlForSharing();
           setShareUrl(`${baseUrl}#${hash}`);
@@ -65,9 +69,21 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Prefetch the first question on the setup screen to make the game start instantly.
+  useEffect(() => {
+    if (gameState === GameState.Setup && !prefetchedQuestion) {
+      getNewQuestion([])
+        .then(setPrefetchedQuestion)
+        .catch(err => {
+          console.error("Failed to pre-fetch question:", err);
+          // Silently fail. The question will be fetched on game start if this fails.
+        });
+    }
+  }, [gameState, prefetchedQuestion]);
+
   // Polling mechanism to create a live-sync experience
   useEffect(() => {
-    if (gameState !== GameState.Playing || !sessionId) {
+    if ((gameState !== GameState.Playing && gameState !== GameState.Paused) || !sessionId) {
       return;
     }
 
@@ -83,13 +99,15 @@ const App: React.FC = () => {
 
         if (decodedState.sessionId !== sessionId) return;
 
-        // Check if the state in the URL is newer than the component's current state
-        const isNewer = decodedState.questionHistory.length > questionHistory.length ||
-                      decodedState.players.length > players.length ||
-                      Object.keys(decodedState.recordings || {}).length > Object.keys(recordings).length;
+        // Check if the state in the URL is different than the component's current state
+        const isOutOfSync = decodedState.gameState !== gameState ||
+                            decodedState.turnStartTime !== turnStartTime ||
+                            decodedState.questionHistory.length !== questionHistory.length ||
+                            decodedState.players.length !== players.length;
 
-        if (isNewer) {
+        if (isOutOfSync) {
           console.log("Syncing new state from URL...");
+          setGameState(decodedState.gameState);
           setPlayers(decodedState.players);
           setCurrentPlayerIndex(decodedState.currentPlayerIndex);
           setCurrentQuestion(decodedState.currentQuestion);
@@ -97,6 +115,7 @@ const App: React.FC = () => {
           setTurnDuration(decodedState.turnDuration);
           setTurnStartTime(decodedState.turnStartTime);
           setRecordings(decodedState.recordings || {});
+          setRemainingTimeOnPause(decodedState.remainingTimeOnPause || null);
           
           const baseUrl = getBaseUrlForSharing();
           setShareUrl(`${baseUrl}#${hash}`);
@@ -107,7 +126,7 @@ const App: React.FC = () => {
     }, 2500); // Poll every 2.5 seconds for updates
 
     return () => clearInterval(intervalId);
-  }, [gameState, sessionId, players, questionHistory, recordings]);
+  }, [gameState, sessionId, players, questionHistory, recordings, turnStartTime]);
 
 
   // Add confirmation dialog before leaving the page during a game
@@ -128,6 +147,10 @@ const App: React.FC = () => {
 
   // Helper to update the URL hash with the new game state
   const updateUrlWithState = (newGameState: SharedGameState): string => {
+    // Clean up undefined properties before serializing
+    if (newGameState.remainingTimeOnPause === undefined) {
+        delete newGameState.remainingTimeOnPause;
+    }
     const encodedState = compressToEncodedURIComponent(JSON.stringify(newGameState));
 
     // URL for browser history (handles blob:)
@@ -142,10 +165,9 @@ const App: React.FC = () => {
   };
 
   const handleGameStart = async (newPlayers: Player[], duration: number) => {
-    setIsLoading(true);
     setError(null);
-    try {
-      const question = await getNewQuestion([]);
+
+    const setupGame = async (question: string) => {
       const newSessionId = `fcq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const newGameState: SharedGameState = {
         sessionId: newSessionId,
@@ -168,6 +190,7 @@ const App: React.FC = () => {
       setSessionId(newSessionId);
       setRecordings({});
       setGameState(GameState.Playing);
+      setPrefetchedQuestion(null); // Invalidate the prefetched question
 
       const newShareUrl = updateUrlWithState(newGameState);
 
@@ -178,13 +201,24 @@ const App: React.FC = () => {
           url: newShareUrl
         }).catch((err) => console.error("Share failed", err));
       }
+    };
 
-    } catch (err) {
-      setError('Failed to fetch the first question. Please try again.');
-      console.error(err);
-      setGameState(GameState.Setup);
-    } finally {
-      setIsLoading(false);
+    if (prefetchedQuestion) {
+      // If question is ready, start game immediately without a loading state.
+      await setupGame(prefetchedQuestion);
+    } else {
+      // Otherwise, show loading state while we fetch the question.
+      setIsLoading(true);
+      try {
+        const question = await getNewQuestion([]);
+        await setupGame(question);
+      } catch (err) {
+        setError('Failed to fetch the first question. Please try again.');
+        console.error(err);
+        setGameState(GameState.Setup);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -287,6 +321,7 @@ const App: React.FC = () => {
           setTurnStartTime(0);
           setSessionId(null);
           setError(null);
+          setRemainingTimeOnPause(null);
           
           const baseUrlForHistory = getBaseUrlForHistory();
           const baseUrlForSharing = getBaseUrlForSharing();
@@ -294,6 +329,54 @@ const App: React.FC = () => {
           window.history.pushState("", document.title, baseUrlForHistory);
       }
   };
+
+  const handlePauseGame = () => {
+    const elapsed = Math.floor((Date.now() - turnStartTime) / 1000);
+    const remaining = Math.max(0, turnDuration - elapsed);
+    setRemainingTimeOnPause(remaining);
+    setGameState(GameState.Paused);
+
+    const newGameState: SharedGameState = {
+        sessionId: sessionId!,
+        gameState: GameState.Paused,
+        players,
+        currentPlayerIndex,
+        currentQuestion,
+        questionHistory,
+        turnDuration,
+        turnStartTime, // Keep original start time for reference
+        recordings,
+        remainingTimeOnPause: remaining,
+    };
+    updateUrlWithState(newGameState);
+  };
+
+  const handleResumeGame = () => {
+    if (remainingTimeOnPause === null) return; // Should not happen
+
+    const elapsedBeforePause = turnDuration - remainingTimeOnPause;
+    const newTurnStartTime = Date.now() - (elapsedBeforePause * 1000);
+
+    setTurnStartTime(newTurnStartTime);
+    setGameState(GameState.Playing);
+    setRemainingTimeOnPause(null);
+
+    const newGameState: SharedGameState = {
+        sessionId: sessionId!,
+        gameState: GameState.Playing,
+        players,
+        currentPlayerIndex,
+        currentQuestion,
+        questionHistory,
+        turnDuration,
+        turnStartTime: newTurnStartTime,
+        recordings,
+    };
+
+    updateUrlWithState(newGameState);
+  };
+
+  const isPlayingOrPaused = gameState === GameState.Playing || gameState === GameState.Paused;
 
   return (
     <main className="bg-brand-bg min-h-screen w-full flex items-center justify-center font-sans text-brand-dark p-4">
@@ -308,7 +391,7 @@ const App: React.FC = () => {
         />
       )}
 
-      {gameState === GameState.Playing && players.length > 0 && (
+      {isPlayingOrPaused && players.length > 0 && (
         <GameBoard
           players={players}
           currentPlayerIndex={currentPlayerIndex}
@@ -323,8 +406,24 @@ const App: React.FC = () => {
           turnIndex={questionHistory.length - 1}
           shareUrl={shareUrl}
           onInvitePlayer={() => setIsInviteModalOpen(true)}
+          isPaused={gameState === GameState.Paused}
+          onPauseGame={handlePauseGame}
         />
       )}
+
+      {gameState === GameState.Paused && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-40 animate-fade-in">
+            <h2 className="text-6xl font-black text-white drop-shadow-lg mb-4">Paused</h2>
+            <p className="text-xl text-white/90 drop-shadow-md mb-8">Take a break. We'll wait!</p>
+            <button
+                onClick={handleResumeGame}
+                className="bg-brand-secondary text-white text-2xl font-bold py-4 px-10 rounded-lg hover:bg-opacity-90 transition transform hover:scale-105 shadow-2xl"
+            >
+                Resume Game
+            </button>
+        </div>
+      )}
+
       {error && <p className="text-red-500 mt-4">{error}</p>}
     </main>
   );
