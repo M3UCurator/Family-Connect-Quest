@@ -5,6 +5,9 @@ import { GameBoard } from './components/GameBoard';
 import { getNewQuestion } from './services/geminiService';
 import { InvitePlayerModal } from './components/InvitePlayerModal';
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from './services/compression';
+import { GameOver } from './components/GameOver';
+
+const MAX_QUESTIONS = 100;
 
 const App: React.FC = () => {
   // Helper to get a URL compatible with the history API, especially in blob contexts
@@ -47,7 +50,7 @@ const App: React.FC = () => {
         if (!jsonState) throw new Error("Could not decompress state from hash.");
 
         const decodedState = JSON.parse(jsonState) as SharedGameState;
-        if ((decodedState.gameState === GameState.Playing || decodedState.gameState === GameState.Paused) && decodedState.sessionId) {
+        if ((decodedState.gameState === GameState.Playing || decodedState.gameState === GameState.Paused || decodedState.gameState === GameState.GameOver) && decodedState.sessionId) {
           setGameState(decodedState.gameState);
           setPlayers(decodedState.players);
           setCurrentPlayerIndex(decodedState.currentPlayerIndex);
@@ -83,7 +86,7 @@ const App: React.FC = () => {
 
   // Polling mechanism to create a live-sync experience
   useEffect(() => {
-    if ((gameState !== GameState.Playing && gameState !== GameState.Paused) || !sessionId) {
+    if (gameState === GameState.Setup || !sessionId) {
       return;
     }
 
@@ -164,6 +167,25 @@ const App: React.FC = () => {
     return newShareableUrl;
   };
 
+  const resetGame = () => {
+      setGameState(GameState.Setup);
+      setPlayers([]);
+      setCurrentPlayerIndex(0);
+      setCurrentQuestion('');
+      setQuestionHistory([]);
+      setRecordings({});
+      setTurnDuration(90);
+      setTurnStartTime(0);
+      setSessionId(null);
+      setError(null);
+      setRemainingTimeOnPause(null);
+      
+      const baseUrlForHistory = getBaseUrlForHistory();
+      const baseUrlForSharing = getBaseUrlForSharing();
+      setShareUrl(baseUrlForSharing);
+      window.history.pushState("", document.title, baseUrlForHistory);
+  };
+
   const handleGameStart = async (newPlayers: Player[], duration: number) => {
     setError(null);
 
@@ -223,6 +245,24 @@ const App: React.FC = () => {
   };
 
   const handleNextTurn = async () => {
+    if (questionHistory.length >= MAX_QUESTIONS) {
+        setGameState(GameState.GameOver);
+        const newGameState: SharedGameState = {
+            sessionId: sessionId!,
+            gameState: GameState.GameOver,
+            players,
+            currentPlayerIndex,
+            currentQuestion,
+            questionHistory,
+            turnDuration,
+            turnStartTime,
+            recordings,
+            remainingTimeOnPause: remainingTimeOnPause ?? undefined,
+        };
+        updateUrlWithState(newGameState);
+        return;
+    }
+      
     setIsLoading(true);
     setError(null);
     
@@ -250,7 +290,8 @@ const App: React.FC = () => {
 
       updateUrlWithState(newGameState);
 
-    } catch (err) {
+    } catch (err)
+      {
       setError('Failed to fetch a new question. Please try again.');
       console.error(err);
     } finally {
@@ -311,22 +352,7 @@ const App: React.FC = () => {
     
   const handleEndGame = () => {
       if (window.confirm("Are you sure you want to end the game? All progress and recordings will be lost.")) {
-          setGameState(GameState.Setup);
-          setPlayers([]);
-          setCurrentPlayerIndex(0);
-          setCurrentQuestion('');
-          setQuestionHistory([]);
-          setRecordings({});
-          setTurnDuration(90);
-          setTurnStartTime(0);
-          setSessionId(null);
-          setError(null);
-          setRemainingTimeOnPause(null);
-          
-          const baseUrlForHistory = getBaseUrlForHistory();
-          const baseUrlForSharing = getBaseUrlForSharing();
-          setShareUrl(baseUrlForSharing);
-          window.history.pushState("", document.title, baseUrlForHistory);
+          resetGame();
       }
   };
 
@@ -408,7 +434,13 @@ const App: React.FC = () => {
           onInvitePlayer={() => setIsInviteModalOpen(true)}
           isPaused={gameState === GameState.Paused}
           onPauseGame={handlePauseGame}
+          questionNumber={questionHistory.length}
+          maxQuestions={MAX_QUESTIONS}
         />
+      )}
+
+      {gameState === GameState.GameOver && (
+        <GameOver onPlayAgain={resetGame} players={players} />
       )}
 
       {gameState === GameState.Paused && (

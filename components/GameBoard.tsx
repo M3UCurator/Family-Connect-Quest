@@ -20,6 +20,8 @@ interface GameBoardProps {
   onInvitePlayer: () => void;
   isPaused: boolean;
   onPauseGame: () => void;
+  questionNumber: number;
+  maxQuestions: number;
 }
 
 const playerColors = [
@@ -58,6 +60,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onInvitePlayer,
   isPaused,
   onPauseGame,
+  questionNumber,
+  maxQuestions,
 }) => {
   const currentPlayer = players[currentPlayerIndex];
   const [copied, setCopied] = useState(false);
@@ -133,6 +137,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           startTime={turnStartTime} 
           duration={turnDuration} 
         />
+        <div className="text-center text-lg font-bold text-brand-secondary/80 mb-4 animate-fade-in">
+          Question {questionNumber}/{maxQuestions}
+        </div>
         <div className="text-center animate-fade-in">
           <p className="text-xl md:text-2xl text-brand-dark">It's your turn,</p>
           <h1 className="text-4xl md:text-6xl font-black text-brand-primary drop-shadow-md">{currentPlayer.name}!</h1>

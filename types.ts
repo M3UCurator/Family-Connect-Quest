@@ -7,6 +7,7 @@ export enum GameState {
   Setup = 'SETUP',
   Playing = 'PLAYING',
   Paused = 'PAUSED',
+  GameOver = 'GAMEOVER',
 }
 
 export interface SharedGameState {
