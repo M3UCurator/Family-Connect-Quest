@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 
 interface AudioRecorderProps {
   onRecordingComplete: (audioDataUrl: string) => void;
-  currentRecording?: string;
+  currentRecording: string | null;
   turnIndex: number;
   disabled: boolean;
 }
@@ -204,7 +204,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplet
                 </div>
             ) : currentRecording ? (
                 <div className="flex flex-col items-center w-full">
-                    <p className="text-sm font-bold text-brand-dark mb-2">Listen to the answer:</p>
+                    <p className="text-sm font-bold text-brand-dark mb-2">Listen to your answer:</p>
                     <audio
                         key={audioKey}
                         ref={audioRef}

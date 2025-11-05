@@ -34,7 +34,7 @@ const App: React.FC = () => {
   const [turnDuration, setTurnDuration] = useState(90); // Default 90 seconds
   const [turnStartTime, setTurnStartTime] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [recordings, setRecordings] = useState<Record<number, string>>({});
+  const [currentTurnRecording, setCurrentTurnRecording] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState(getBaseUrlForSharing());
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [prefetchedQuestion, setPrefetchedQuestion] = useState<string | null>(null);
@@ -59,7 +59,6 @@ const App: React.FC = () => {
           setTurnDuration(decodedState.turnDuration);
           setTurnStartTime(decodedState.turnStartTime);
           setSessionId(decodedState.sessionId);
-          setRecordings(decodedState.recordings || {});
           setRemainingTimeOnPause(decodedState.remainingTimeOnPause || null);
           
           const baseUrl = getBaseUrlForSharing();
@@ -117,7 +116,6 @@ const App: React.FC = () => {
           setQuestionHistory(decodedState.questionHistory);
           setTurnDuration(decodedState.turnDuration);
           setTurnStartTime(decodedState.turnStartTime);
-          setRecordings(decodedState.recordings || {});
           setRemainingTimeOnPause(decodedState.remainingTimeOnPause || null);
           
           const baseUrl = getBaseUrlForSharing();
@@ -129,7 +127,7 @@ const App: React.FC = () => {
     }, 2500); // Poll every 2.5 seconds for updates
 
     return () => clearInterval(intervalId);
-  }, [gameState, sessionId, players, questionHistory, recordings, turnStartTime]);
+  }, [gameState, sessionId, players, questionHistory, turnStartTime]);
 
 
   // Add confirmation dialog before leaving the page during a game
@@ -173,7 +171,7 @@ const App: React.FC = () => {
       setCurrentPlayerIndex(0);
       setCurrentQuestion('');
       setQuestionHistory([]);
-      setRecordings({});
+      setCurrentTurnRecording(null);
       setTurnDuration(90);
       setTurnStartTime(0);
       setSessionId(null);
@@ -200,7 +198,6 @@ const App: React.FC = () => {
         questionHistory: [question],
         turnDuration: duration,
         turnStartTime: Date.now(),
-        recordings: {},
       };
       
       setPlayers(newPlayers);
@@ -210,7 +207,7 @@ const App: React.FC = () => {
       setTurnDuration(duration);
       setTurnStartTime(Date.now());
       setSessionId(newSessionId);
-      setRecordings({});
+      setCurrentTurnRecording(null);
       setGameState(GameState.Playing);
       setPrefetchedQuestion(null); // Invalidate the prefetched question
 
@@ -256,7 +253,6 @@ const App: React.FC = () => {
             questionHistory,
             turnDuration,
             turnStartTime,
-            recordings,
             remainingTimeOnPause: remainingTimeOnPause ?? undefined,
         };
         updateUrlWithState(newGameState);
@@ -265,6 +261,7 @@ const App: React.FC = () => {
       
     setIsLoading(true);
     setError(null);
+    setCurrentTurnRecording(null); // Clear recording for the new turn
     
     const nextPlayerIndex = (currentPlayerIndex + 1) % players.length;
 
@@ -280,7 +277,6 @@ const App: React.FC = () => {
         questionHistory: newQuestionHistory,
         turnDuration: turnDuration,
         turnStartTime: Date.now(),
-        recordings: recordings,
       };
 
       setCurrentPlayerIndex(nextPlayerIndex);
@@ -300,27 +296,7 @@ const App: React.FC = () => {
   };
   
   const handleRecordingComplete = (audioDataUrl: string) => {
-    const turnIndex = questionHistory.length - 1;
-    const newRecordings = {
-        ...recordings,
-        [turnIndex]: audioDataUrl,
-    };
-
-    setRecordings(newRecordings);
-
-    const newGameState: SharedGameState = {
-        sessionId: sessionId!,
-        gameState: GameState.Playing,
-        players,
-        currentPlayerIndex,
-        currentQuestion,
-        questionHistory,
-        turnDuration,
-        turnStartTime,
-        recordings: newRecordings,
-    };
-
-    updateUrlWithState(newGameState);
+    setCurrentTurnRecording(audioDataUrl);
   };
 
   const handleAddPlayerToGame = (newPlayerName: string) => {
@@ -343,7 +319,6 @@ const App: React.FC = () => {
         questionHistory,
         turnDuration,
         turnStartTime,
-        recordings,
     };
 
     updateUrlWithState(newGameState);
@@ -351,7 +326,7 @@ const App: React.FC = () => {
   };
     
   const handleEndGame = () => {
-      if (window.confirm("Are you sure you want to end the game? All progress and recordings will be lost.")) {
+      if (window.confirm("Are you sure you want to end the game? All progress will be lost.")) {
           resetGame();
       }
   };
@@ -371,7 +346,6 @@ const App: React.FC = () => {
         questionHistory,
         turnDuration,
         turnStartTime, // Keep original start time for reference
-        recordings,
         remainingTimeOnPause: remaining,
     };
     updateUrlWithState(newGameState);
@@ -396,7 +370,6 @@ const App: React.FC = () => {
         questionHistory,
         turnDuration,
         turnStartTime: newTurnStartTime,
-        recordings,
     };
 
     updateUrlWithState(newGameState);
@@ -428,7 +401,7 @@ const App: React.FC = () => {
           turnStartTime={turnStartTime}
           onEndGame={handleEndGame}
           onRecordingComplete={handleRecordingComplete}
-          currentRecording={recordings[questionHistory.length - 1]}
+          currentRecording={currentTurnRecording}
           turnIndex={questionHistory.length - 1}
           shareUrl={shareUrl}
           onInvitePlayer={() => setIsInviteModalOpen(true)}

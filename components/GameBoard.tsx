@@ -14,7 +14,7 @@ interface GameBoardProps {
   turnStartTime: number;
   onEndGame: () => void;
   onRecordingComplete: (audioDataUrl: string) => void;
-  currentRecording?: string;
+  currentRecording: string | null;
   turnIndex: number;
   shareUrl: string;
   onInvitePlayer: () => void;
